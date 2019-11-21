@@ -9,7 +9,8 @@ The institutions responsible for the monitoring are the Regional Health Inspecto
 To compound this, there is also no standard form or way of storing the data. Each RHI apparently chooses the way in which to present the data. The result is that 2 are in Excel files, while 1 is in pdf (?!?)... On top of that, the files themselves are really, really messy. 
 
 ## Purpose
-All of the above makes the Bulgarian bathing waters data a wonderful exercise in tidying hopelessly messy data. The purpose of this repository is to document and store the steps in cleaning the raw data, with the end result hopefully somewhat easier to analyze, if I ever need it or feel like it. Also, the idea is to have a script/procedure ready for the next time I inevitably need to repeat this. All the cleaning and processing will be done in R. 
+All of the above makes the Bulgarian bathing waters data a wonderful exercise in tidying hopelessly messy data. The purpose of this repository is to document and store the steps in cleaning the raw data, with the end result hopefully somewhat easier to analyze, if I ever need it or feel like it. Also, the idea is to have a script/procedure ready for the next time I inevitably need to repeat this. All the cleaning and processing will be done in R.  
+
 *NOTE I've already compiled and cleaned (manually) a good portion of the available data from previous years. I'm going to follow the structure I decided on then - but I might go back and try to arrive at the same result later, when I finish tinkering.*
 
 ## Data usage
