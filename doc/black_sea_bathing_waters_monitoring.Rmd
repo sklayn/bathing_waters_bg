@@ -1,0 +1,130 @@
+---
+title: "Black Sea bathing waters monitoring - data cleaning"
+date: "`r Sys.Date()`"
+output: html_notebook
+---
+
+This notebook contains the preliminary cleaning of the bathing waters monitoring data for the Bulgarian sector of the Black Sea. It is performed every 2 weeks (or more often in case of detected contamination/other problems) during the summer bathing season, by the Regional Health Inspectorates of 3 regions: Dobrich, Varna and Burgas. The main parameters measured are the concentrations of intestinal enterococci and Escherichia coli (in MPN/100 mL seawater), in accordance with the EU Bathing waters directive.  
+Additional parameters may also be measured (full description in dedicated description file).  
+The data is provided at the end of the year on the RHI websites.   
+
+Unfortunately, as published on the RHI websites, the data is next to useless. In the case of Varna, it's in pdf format - thanks a lot for that! For Dobrich and Burgas, it's at least in Excel files, but still terrible, non-machine-readable, because why would you want THAT?  
+
+Since I'm really tired of copy-pasting the data each year, I'm going to try to automate at least part of the cleaning. There's no telling if it will be applicable the following year, though (actually, I can tell - it won't be, because there is no way to tell in advance how many monitorings will be performed at a beach in a given year).   
+
+***  
+Setup! 
+```{r setup, include = FALSE}
+library(knitr)
+
+knit_hooks$set(small.mar = function(before, options, envir) {
+    if (before) par(mar = c(2, 2, .1, 2))  # smaller margin on top
+})
+
+## set the working directory to one up (all notebooks - kept in their own subdirectory within the project directory).
+opts_knit$set(root.dir = rprojroot::find_rstudio_root_file())
+
+## set knitr options for knitting code into the report.
+opts_chunk$set(cache = TRUE, # save results so that code blocks aren't re-run unless code changes
+               autodep = TRUE, # ..or unless a relevant earlier code block changed
+               cache.comments = FALSE, # don't re-run if the only thing that changed was the comments
+               highlight = TRUE, 
+               small.mar = TRUE)
+```
+
+Define the working subdirectories.  
+```{r workspace_setup}
+## print the working directory, just to be on the safe side
+paste("You are here: ", getwd())
+
+data.dir <- "data"    ## input data files
+functions.dir <- "R"  ## functions & scripts
+save.dir <- "output"  ## clean data, output from models & more complex calculations
+figures.dir <- "figs" ## plots & figures 
+```
+
+Import libraries.  
+```{r import_packages, results = FALSE}
+library(here) ## painless relative paths to subdurectories, etc.
+library(tidyverse) ## data manipulation, cleaning, aggregation
+library(readxl) ## read in (tidy) excel files
+library(unpivotr) ## read in and tidy messy excel files
+library(tidyxl) ## read in and tidy messy excel files
+```
+
+Organize some commonly-used ggplot2 modifications into a more convenient (and less repetitive) format. One day, I MUST figure out the proper way to set the theme..    
+```{r custom_ggplot_settings_helpers}
+## ggplot settings & things that I keep reusing
+# ggplot_theme <- list(
+#   theme_bw(),
+#   theme(element_text(family = "Times"))
+# )
+
+## always use black-and-white theme
+theme_set(theme_bw())
+
+```
+
+***  
+
+### Burgas  
+#### 2018  
+I'm currently a year behind, because the task is so incredibly tedious.  
+For 2018, the Burgas region data are in an Excel file. All beaches are in the same sheet, one following the other. They generally go north to south, except the last few, which were added later to the monitoring, so probably were just appended to the end..   
+**NB Before doing anyting else, I un-merged all cells and made all rows and columns visible - yes, that was a thing in this file! Remember to repeat every time!**  
+For each monitoring point there are 5 descriptive rows containing some metadata. I generally don't need it, since it doesn't vary year-to-year (the location of the monitoring station, for example). I do need the name of the station, to identify it later - although it is mixed with a description of its location (e.g. "in front of baywatch post 2").  
+For reference, the metadata positions (row, col) are:  
+* station number: 1, 3  
+* station name: 1, 6  
+* latitude: 2, 4  
+* longitude: 2, 6  
+* starting date of bathing season: 3, 4  
+* ending date of bathing season:  3, 6  
+
+Of these, I want the **station name** and the **start and end of the bathing season**.  
+
+Then, the data have a header with column names (1 row, common for all), and a varying number of observations (rows) containing the monitoring data - I counted these manually.  
+The beaches are separated by a varying number of rows - most often 1 or 2, sometimes 0 (no separation) - I counted these manually, too. Turns out, I shouldn't have bothered - there are ways to (semi)automatically detect these things..  
+
+Since the data all have the same header, they could be considered small multiples and combined in a single data frame, adding the information I want to keep from the header in separate columns - that's what I want anyway. This can be done using packages tidyxl and unpivotr. 
+
+**NB tidyxl cannot read xls files - it needs xlsx, so the input file was converted manually to xlsx first!**  
+
+```{r import_all_cells_burgas_2018}
+## capture the data in a tidy fashion, explicitly calling out rows and columns and other metadata within each cell, and filter out all empty rows (= dividers between the separate beach datasets)
+(cells.burgas.2018 <- xlsx_cells(here(data.dir, "burgas_tablici_monitoring_more_MZ-2018.xlsx")) %>% 
+   dplyr::filter(!is_blank)
+ )
+```
+
+Import one of the multiples.   
+The small multiples each have exactly one "ПУНКТ ЗА ВЗЕМАНЕ НА ПРОБИ №" header cell (uppermost left), so we can begin by filtering for those cells, and then moving the selection 5 columns to the right to get the station names.  
+These also contain text descriptions of the exact location of the sampling - but I'll leave them as is for now - haven't decided whether it's worth keeping them (probably yes).    
+```{r station_names_burgas_2018}
+## the names will be in the "character" column - but I will keep the rest of the cell information for now
+(station_name <-
+  dplyr::filter(cells.burgas.2018, character == "ПУНКТ ЗА ВЗЕМАНЕ НА ПРОБИ №") %>%
+  select(row, col) %>%
+  mutate(col = col + 5L) %>%
+  inner_join(cells.burgas.2018, by = c("row", "col"))
+)
+```
+Unfortunately, since this is actually in the 6th column, a lot of data is missed if I use it as point of partitioning.. 
+I will instead split the sheet on the upper left corner cell of each table (the one containing "ПУНКТ...").
+
+Partition the sheet, using the row coordinates of the station_name tibble.   
+```{r partition_sheet_burgas_2018}
+## make a subset of the original cells to use for partitioning 
+cells.part <- dplyr::filter(cells.burgas.2018, character == "ПУНКТ ЗА ВЗЕМАНЕ НА ПРОБИ №") %>%
+  select(row, col) %>%
+  inner_join(cells.burgas.2018, by = c("row", "col"))
+  
+burgas.2018.part <- partition(cells.burgas.2018, cells.part)
+```
+
+
+```{r}
+burgas.2018.part$cells[[1]] 
+
+```
+
