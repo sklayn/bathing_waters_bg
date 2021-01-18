@@ -1,4 +1,4 @@
-# bathing_waters_bg
+# Bathing waters quality - Bulgarian Black Sea
 Data from the microbiological monitoring of marine bathing waters in Bulgaria (Black Sea) for the EU Bathing waters directive
 
 ## General description
@@ -11,7 +11,7 @@ To compound this, there is also no standard form or way of storing the data. Eac
 ## Purpose
 All of the above makes the Bulgarian bathing waters data a wonderful exercise in tidying hopelessly messy data. The purpose of this repository is to document and store the steps in cleaning the raw data, with the end result hopefully somewhat easier to analyze, if I ever need it or feel like it. Also, the idea is to have a script/procedure ready for the next time I inevitably need to repeat this. All the cleaning and processing will be done in R.  
 
-*NOTE I've already compiled and cleaned (manually) a good portion of the available data from previous years. I'm going to follow the structure I decided on then - but I might go back and try to arrive at the same result later, when I finish tinkering.*
+*NOTE I've already compiled and cleaned (manually) a good portion of the available data from previous years. I'm going to follow the structure I decided on then - but I plan to go back and try to arrive at more or less the same result later, when I finish tinkering - the goal is to make this whole process completely reproducible. Expected to have to modify each year, according to whatever changes in the file structure the RHIs introduce - accidentally or on purpose.*
 
 ## Data usage
 This is public data, free to look at, use, make a pretty visualization, etc. Unfortunately, it's in Bulgarian, so I doubt it will be terribly useful to many people. If it ever saves someone the trouble of compiling and cleaning it - you're welcome! 
